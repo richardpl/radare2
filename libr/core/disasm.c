@@ -924,6 +924,7 @@ static void ds_free(RDisasmState *ds) {
 	ds_reflines_fini (ds);
 	ds_print_esil_anal_fini (ds);
 	sdb_free (ds->ssa);
+	R_FREE (ds->core->parser->retleave_asm);
 	free (ds->comment);
 	free (ds->line);
 	free (ds->line_col);
