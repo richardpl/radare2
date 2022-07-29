@@ -15,8 +15,10 @@ static bool get_line(RBinFile *bf, ut64 addr, char *file, int len, int *line) {
 				*p = '\0';
 				strncpy (file, ret, len);
 				*line = atoi (p + 1);
+				free (ret);
 				return true;
 			}
+			free (ret);
 		}
 	}
 	return false;

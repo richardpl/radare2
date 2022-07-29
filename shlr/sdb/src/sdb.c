@@ -577,6 +577,9 @@ static ut32 sdb_set_internal(Sdb* s, const char *key, char *val, bool owned, ut3
 	SdbKv *kv;
 	bool found;
 	if (!s || !key) {
+		if (val && owned) {
+			free (val);
+		}
 		return 0;
 	}
 	if (!val) {
@@ -650,6 +653,9 @@ static ut32 sdb_set_internal(Sdb* s, const char *key, char *val, bool owned, ut3
 		return cas;
 	}
 	// kv set failed, no need to callback	sdb_hook_call (s, key, val);
+	if (owned) {
+		free (val);
+	}
 	return 0;
 }
 
