@@ -4169,7 +4169,7 @@ static void cmd_print_bars(RCore *core, const char *input) {
 				free (p);
 			}
 			break;
-		case 'e': // "p=e"
+		case 'e': // "p==e"
 		{
 			ut8 *p;
 			int i = 0;
@@ -4183,6 +4183,9 @@ static void cmd_print_bars(RCore *core, const char *input) {
 				goto beach;
 			}
 			for (i = 0; i < nblocks; i++) {
+				if (r_cons_is_breaked ()) {
+					break;
+				}
 				ut64 off = from + (blocksize * (i + skipblocks));
 				r_io_read_at (core->io, off, p, blocksize);
 				ptr[i] = (ut8) (255 * r_hash_entropy_fraction (p, blocksize));
@@ -4282,6 +4285,9 @@ static void cmd_print_bars(RCore *core, const char *input) {
 			goto beach;
 		}
 		for (i = 0; i < nblocks; i++) {
+			if (r_cons_is_breaked ()) {
+				break;
+			}
 			ut64 off = from + (blocksize * (i + skipblocks));
 			r_io_read_at (core->io, off, p, blocksize);
 			ptr[i] = (ut8) (255 * r_hash_entropy_fraction (p, blocksize));
