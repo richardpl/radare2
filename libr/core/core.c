@@ -3312,6 +3312,14 @@ R_API void r_core_fini(RCore *c) {
 	r_parse_free (c->parser);
 	free (c->times);
 	if (c->panels_root) {
+		if (c->panels_root->panels && c->panels_root->panels[0]) {
+			RPanels *panels = c->panels_root->panels[0];
+			r_cons_canvas_free (panels->can);
+			sdb_free (panels->db);
+			sdb_free (panels->rotate_db);
+			sdb_free (panels->modal_db);
+			free (panels);
+		}
 		sdb_free (c->panels_root->pdc_caches);
 		sdb_free (c->panels_root->cur_pdc_cache);
 		free (c->panels_root->panels);
