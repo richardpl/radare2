@@ -3311,6 +3311,12 @@ R_API void r_core_fini(RCore *c) {
 	r_core_log_free (c->log);
 	r_parse_free (c->parser);
 	free (c->times);
+	if (c->panels_root) {
+		sdb_free (c->panels_root->pdc_caches);
+		sdb_free (c->panels_root->cur_pdc_cache);
+		free (c->panels_root->panels);
+		free (c->panels_root);
+	}
 }
 
 R_API void r_core_free(RCore *c) {

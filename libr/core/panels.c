@@ -2211,7 +2211,7 @@ static void __init_modal_db(RCore *core) {
 	SdbList *sdb_list = sdb_foreach_list (core->panels->db, true);
 	ls_foreach (sdb_list, sdb_iter, kv) {
 		const char *key = sdbkv_key (kv);
-		sdb_ptr_set (db, r_str_new (key), &__create_panel_db, 0);
+		sdb_ptr_set (db, key, &__create_panel_db, 0);
 	}
 	sdb_ptr_set (db, "Search strings in data sections", &__search_strings_data_create, 0);
 	sdb_ptr_set (db, "Search strings in the whole bin", &__search_strings_bin_create, 0);
@@ -7248,6 +7248,17 @@ exit:
 	r_cons_set_interactive (o_interactive);
 }
 
+static void __free_panels(RPanels *panels)
+{
+	if (panels) {
+		r_cons_canvas_free (panels->can);
+		sdb_free (panels->db);
+		sdb_free (panels->rotate_db);
+		sdb_free (panels->modal_db);
+		free (panels);
+	}
+}
+
 static void __del_panels(RCore *core) {
 	RPanelsRoot *panels_root = core->panels_root;
 	if (panels_root->n_panels <= 1) {
@@ -7256,6 +7267,7 @@ static void __del_panels(RCore *core) {
 	}
 	int i;
 	for (i = panels_root->cur_panels; i < panels_root->n_panels - 1; i++) {
+		__free_panels(panels_root->panels[i]);
 		panels_root->panels[i] = panels_root->panels[i + 1];
 	}
 	panels_root->n_panels--;
