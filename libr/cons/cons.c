@@ -225,9 +225,9 @@ R_API void r_cons_color(int fg, int r, int g, int b) {
 	if (r == g && g == b) { // b&w
 		k = 232 + (int)(((r+g+b)/3)/10.3);
 	} else {
-		r = (int)(r / 42.6);
-		g = (int)(g / 42.6);
-		b = (int)(b / 42.6);
+		r = r / 51;
+		g = g / 51;
+		b = b / 51;
 		k = 16 + (r * 36) + (g * 6) + b;
 	}
 	r_cons_printf ("\x1b[%d;5;%dm", fg? 48: 38, k);
