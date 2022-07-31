@@ -1000,36 +1000,39 @@ R_API void r_cons_eflush(void) {
 	}
 }
 
-// TODO: must be called twice to remove all unnecessary reset codes. maybe adding the last two words would be faster
-// TODO remove all the strdup
-// TODO remove the slow memmove
 static void optimize(void) {
+	RStrBuf *obuf = C->obuffer;
+	if (!obuf) {
+		C->obuffer = obuf = r_strbuf_new ("");
+		if (!obuf) {
+			return;
+		}
+	} else {
+		obuf->len = 0;
+		obuf->buf[0] = '\0';
+		if (obuf->ptr) {
+			obuf->ptr[0] = '\0';
+		}
+	}
 	char *buf = C->buffer;
 	int len = C->buffer_len;
 	int i, codes = 0;
 	int escape_n = 0;
 	char escape[32];
 	bool onescape = false;
-	char *oldstr = NULL;
+	char oldstr[32];
 	for (i = 0; i < len; i++) {
 		if (onescape) {
 			escape[escape_n++] = buf[i];
 			escape[escape_n] = 0;
 			if (buf[i] == 'm' || buf[i] == 'K' || buf[i] == 'L') {
-				int pos = (i - escape_n);
-			// 	eprintf ("JJJ(%s) (%s)%c", escape + 1, oldstr?oldstr+1:"", 10);
-				if (oldstr && !strcmp (escape, oldstr)) {
-					// trim str
-					memmove (buf + pos + 1, buf + i + 1, len - i + 1);
-					i -= escape_n - 1;
-					len -= escape_n;
+				if (strcmp (escape, oldstr)) {
+					r_strbuf_append_n (obuf, escape, escape_n);
 				}
-				free (oldstr);
-				oldstr = strdup (escape);
-			//	eprintf ("ERN (%d) %s%c", pos, escape, 10);
+				memcpy (oldstr, escape, sizeof (oldstr));
 				onescape = false;
 			} else {
-				if (escape_n + 1 >= sizeof(escape)) {
+				if (escape_n + 1 >= sizeof (escape)) {
 					escape_n = 0;
 					onescape = false;
 				}
@@ -1040,11 +1043,15 @@ static void optimize(void) {
 			escape[escape_n++] = buf[i];
 			escape[escape_n] = 0;
 			codes++;
+		} else {
+			r_strbuf_append_n (obuf, buf + i, 1);
 		}
 	}
-	// eprintf ("FROM %d TO %d (%d)%c", C->buffer_len, len, codes, 10);
-	C->buffer_len = len;
-	free (oldstr);
+	// eprintf ("FROM %d TO %d (%d)%c", len, r_strbuf_length (obuf), codes, 10);
+	if (r_strbuf_length (obuf) < len) {
+		C->buffer_len = r_strbuf_length (obuf);
+		memcpy (C->buffer, r_strbuf_get (obuf), C->buffer_len);
+	}
 }
 
 #if R2_580

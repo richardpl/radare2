@@ -389,6 +389,7 @@ typedef struct r_cons_context_t {
 	char *buffer; // TODO: replace with RStrBuf
 	size_t buffer_len;
 	size_t buffer_sz;
+	RStrBuf *obuffer;
 	RStrBuf *error; // r_cons_eprintf / r_cons_errstr / r_cons_errmode
 	int errmode;
 	bool breaked;
