@@ -83,12 +83,11 @@ static void block_free(RAnalBlock *block) {
 void __block_free_rb(RBNode *node, void *user) {
 	RAnalBlock *block = unwrap (node);
 	r_anal_block_unref (block);
-	// block_free (block);
 }
 
 R_API void r_anal_block_reset(RAnal *a) {
 	if (a->bb_tree) {
-		 r_rbtree_free (a->bb_tree, __block_free_rb, NULL);
+		r_rbtree_free (a->bb_tree, __block_free_rb, NULL);
 		a->bb_tree = NULL;
 	}
 }
@@ -185,7 +184,9 @@ R_API RAnalBlock *r_anal_create_block(RAnal *anal, ut64 addr, ut64 size) {
 	if (!block) {
 		return NULL;
 	}
-	r_rbtree_aug_insert (&anal->bb_tree, &block->addr, &block->_rb, __bb_addr_cmp, NULL, __max_end);
+	if (r_rbtree_aug_insert (&anal->bb_tree, &block->addr, &block->_rb, __bb_addr_cmp, NULL, __max_end)) {
+		r_anal_block_ref (block);
+	}
 	return block;
 }
 
@@ -205,7 +206,9 @@ R_API void r_anal_delete_block(RAnalBlock *bb) {
 			r_anal_function_remove_block (fcn, bb);
 		}
 	}
-	r_rbtree_aug_delete (&bb->anal->bb_tree, &bb->addr, __bb_addr_cmp, NULL, NULL, NULL, __max_end);
+	if (r_rbtree_aug_delete (&bb->anal->bb_tree, &bb->addr, __bb_addr_cmp, NULL, NULL, NULL, __max_end)) {
+		r_anal_block_unref (bb);
+	}
 	r_anal_block_unref (bb);
 }
 
@@ -262,12 +265,15 @@ R_API bool r_anal_block_relocate(RAnalBlock *block, ut64 addr, ut64 size) {
 		}
 	}
 
-	r_rbtree_aug_delete (&block->anal->bb_tree, &block->addr, __bb_addr_cmp, NULL, NULL, NULL, __max_end);
-	block->addr = addr;
-	block->size = size;
-	r_anal_block_update_hash (block);
-	r_rbtree_aug_insert (&block->anal->bb_tree, &block->addr, &block->_rb, __bb_addr_cmp, NULL, __max_end);
-	return true;
+	if (r_rbtree_aug_delete (&block->anal->bb_tree, &block->addr, __bb_addr_cmp, NULL, NULL, NULL, __max_end)) {
+	    block->addr = addr;
+	    block->size = size;
+	    r_anal_block_update_hash (block);
+	    if (r_rbtree_aug_insert (&block->anal->bb_tree, &block->addr, &block->_rb, __bb_addr_cmp, NULL, __max_end)) {
+		    return true;
+	    }
+	}
+	return false;
 }
 
 R_API RAnalBlock *r_anal_block_split(RAnalBlock *bbi, ut64 addr) {
@@ -301,7 +307,9 @@ R_API RAnalBlock *r_anal_block_split(RAnalBlock *bbi, ut64 addr) {
 	r_anal_block_update_hash (bbi);
 
 	// insert the second block into the tree
-	r_rbtree_aug_insert (&anal->bb_tree, &bb->addr, &bb->_rb, __bb_addr_cmp, NULL, __max_end);
+	if (r_rbtree_aug_insert (&anal->bb_tree, &bb->addr, &bb->_rb, __bb_addr_cmp, NULL, __max_end)) {
+		r_anal_block_ref (bb);
+	}
 
 	// insert the second block into all functions of the first
 	RListIter *iter;
@@ -392,16 +400,13 @@ R_API void r_anal_block_unref(RAnalBlock *bb) {
 		return;
 	}
 	if (bb->ref < 1) {
+		R_LOG_WARN ("Trying to access freed memory");
 		return;
 	}
 	r_return_if_fail (bb->ref > 0);
 	bb->ref--;
-	// r_return_if_fail (bb->ref >= r_list_length (bb->fcns)); // all of the block's functions must hold a reference to it
 	if (bb->ref < 1) {
-		RAnal *anal = bb->anal;
-		r_rbtree_aug_delete (&anal->bb_tree, &bb->addr, __bb_addr_cmp, NULL, __block_free_rb, NULL, __max_end);
 		block_free (bb);
-		// r_return_if_fail (r_list_empty (bb->fcns));
 	}
 }
 
@@ -845,10 +850,9 @@ R_API RAnalBlock *r_anal_block_chop_noreturn(RAnalBlock *block, ut64 addr) {
 
 	// Free/unref BEFORE doing the merge!
 	// Some of the blocks might not be valid anymore later!
+	ut64 block_addr = block->addr; // save the addr to identify the block. the automerge or unref might free it so we must not use the pointer
 	r_anal_block_unref (block);
 	ht_up_free (succs);
-
-	ut64 block_addr = block->addr; // save the addr to identify the block. the automerge might free it so we must not use the pointer!
 
 	// Do the actual merge
 	r_anal_block_automerge (&merge_blocks);
